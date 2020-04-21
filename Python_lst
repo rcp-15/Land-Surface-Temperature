@@ -1,0 +1,46 @@
+arcpy.env.workspace = r'F:\data\2019-0315' #setting the worspace where all the data layers are present
+ras=arcpy.ListRasters() #seperating the raster files
+
+#creating seperate lists for the required three bands of all data
+B4_ras=[]
+B5_ras=[]
+B10_ras=[]
+for l in ras:
+     if (l.find('B4')!=-1):
+         B4_ras+=[l]
+for l in ras:
+     if (l.find('B5')!=-1):
+         B5_ras+=[l]
+for l in ras:
+     if (l.find('B10')!=-1):
+         B10_ras+=[l]
+		 
+#clipping the layer to required study area
+for l in B4_ras:
+     arcpy.Clip_management(l,"413546.28 1433041.392 422025.232 1440262.559",l+"_clip.tif","#","#","NONE","NO_MAINTAIN_EXTENT")
+for l in B5_ras:
+     arcpy.Clip_management(l,"413546.28 1433041.392 422025.232 1440262.559",l+"_clip.tif","#","#","NONE","NO_MAINTAIN_EXTENT")     
+for l in B10_ras:
+     arcpy.Clip_management(l,"413546.28 1433041.392 422025.232 1440262.559",l+"_clip.tif","#","#","NONE","NO_MAINTAIN_EXTENT")
+	 
+#sorting the data as per the date. landsat 8 data names are itself based upon the date of accquission
+B4_ras.sort()
+B5_ras.sort()
+B10_ras.sort()
+from arcpy.sa import *
+
+#computing various required parameters and LST for each date data
+for l in range(len(B4_ras)): #due to sorting all the same data files will lie in the same index of the lists
+     TOA=arcpy.Raster(B10_ras[l])*0.0003342+0.1 #Top of Atmospheric spectral radiance
+	 
+     BT = Minus((1321.0789 / Ln ((774.8853 / TOA) + 1)), 273.15) #Brightness temperature
+	 
+     NDVI=FloatDivide((arcpy.Raster(B5_ras[l])-arcpy.Raster(B4_ras[l])),(arcpy.Raster(B5_ras[l])+arcpy.Raster(B4_ras[l]))) #NDVI
+	 
+     P=Square(FloatDivide((NDVI-1),0.045)) #proportion of vegetation
+	 
+     E=0.004*P+0.986 #emmissivity
+	 
+	 LST = (BT / (1 + (FloatDivide((0.00115 * BT) , 1.4388)) * Ln(E))) #Land surface temperature
+	 LST.save("F:/Data/2019-0315/LST.tif"+l) #the required lst for each date will be saved
+
